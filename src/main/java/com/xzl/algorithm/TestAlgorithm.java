@@ -15,15 +15,17 @@ public class TestAlgorithm {
 
     @Test
     public void testTimeWheel() throws InterruptedException {
-        TimeWheel timeWheel = new TimeWheel(16, 1, TimeUnit.SECONDS);
+        TimeWheel timeWheel = new TimeWheel(16, 2000, TimeUnit.MILLISECONDS);
         long l = System.currentTimeMillis();
         for (int i = 1; i < 100000; i++) {
             int finalI = i;
             timeWheel.addTask(() -> System.out.println("任务:[" + finalI + "]:" + LocalDateTime.now()), i, TimeUnit.SECONDS);
-            timeWheel.addTask(() -> System.out.println("任务:[" + finalI + "]:" + LocalDateTime.now()), i, TimeUnit.SECONDS);
         }
         System.out.println(System.currentTimeMillis() - l);
-        TimeUnit.SECONDS.sleep(10000);
+        TimeUnit.SECONDS.sleep(5);
+//        timeWheel.shutDown();
+        TimeUnit.SECONDS.sleep(500000);
+
     }
 
     @Test
@@ -37,5 +39,16 @@ public class TestAlgorithm {
         }
         System.out.println(System.currentTimeMillis() - l);
         TimeUnit.SECONDS.sleep(10000);
+    }
+
+
+    @Test
+    public void hash() {
+        int size = 16;
+        long l = System.currentTimeMillis();
+        for (int i = 0; i < 1000000; i++) {
+            System.out.println(i % 16);
+        }
+        System.out.println(System.currentTimeMillis() - l);
     }
 }

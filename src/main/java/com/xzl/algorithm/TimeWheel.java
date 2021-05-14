@@ -24,8 +24,6 @@ public class TimeWheel {
 
     AtomicInteger globalPos = new AtomicInteger(0);
 
-    volatile boolean stop = false;
-
     volatile State state;
 
     long wheelTime;
@@ -48,8 +46,10 @@ public class TimeWheel {
 
     public void addTask(Runnable task, long timeOut, TimeUnit unit) {
         long time = this.unit.convert(timeOut, unit);
-        int index = Math.toIntExact((time / wheelTime) - 1) % wheel.length;
-        int pos = Math.toIntExact((time / wheelTime) / wheel.length);
+        int length = wheel.length;
+        int p = (int) (time / wheelTime);
+        int index = (int) (p - 1) & (length - 1);
+        int pos = p / length;
         Map<Integer, Set<Runnable>> maps = wheel[index];
         Set<Runnable> tasks = maps.get(pos);
         if (Objects.isNull(tasks)) {
@@ -64,7 +64,7 @@ public class TimeWheel {
     private final class Worker implements Runnable {
         @Override
         public void run() {
-            if (!stop && state == START) {
+            if (state == START) {
                 try {
                     int curIndex = curWheel.get();
                     Map<Integer, Set<Runnable>> map = wheel[curIndex];
@@ -85,7 +85,6 @@ public class TimeWheel {
     }
 
     public void shutDown() {
-        stop = true;
         state = SHUTDOWN;
         scheduled.shutdown();
     }
@@ -99,10 +98,22 @@ public class TimeWheel {
 
     @SuppressWarnings("unchecked")
     private Map<Integer, Set<Runnable>>[] createWheel(int wheelSize) {
-        Map<Integer, Set<Runnable>>[] wheel = new HashMap[wheelSize];
+        Map<Integer, Set<Runnable>>[] wheel = new HashMap[tableSizeFor(wheelSize)];
         for (int i = 0; i < wheel.length; i++) {
             wheel[i] = new HashMap<>();
         }
         return wheel;
     }
+
+    final int tableSizeFor(int cap) {
+        int n = cap - 1;
+        n |= n >>> 1;
+        n |= n >>> 2;
+        n |= n >>> 4;
+        n |= n >>> 8;
+        n |= n >>> 16;
+        return (n < 0) ? 1 : (n >= MAXIMUM_CAPACITY) ? MAXIMUM_CAPACITY : n + 1;
+    }
+
+    static final int MAXIMUM_CAPACITY = 1 << 30;
 }
