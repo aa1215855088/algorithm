@@ -4,6 +4,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static com.xzl.algorithm.TimeWheel.State.*;
 
@@ -30,6 +31,12 @@ public class TimeWheel {
 
     TimeUnit unit;
 
+    ReentrantLock lock = new ReentrantLock();
+
+    final Object object = new Object();
+
+
+
     public TimeWheel(int wheelSize, long wheelTime, TimeUnit unit) {
         state = INIT;
         wheel = createWheel(wheelSize);
@@ -38,9 +45,11 @@ public class TimeWheel {
     }
 
     public void start() {
-        if (state == INIT) {
-            scheduled.scheduleAtFixedRate(new Worker(), wheelTime, wheelTime, unit);
-            state = START;
+        synchronized (object) {
+            if (state == INIT) {
+                scheduled.scheduleAtFixedRate(new Worker(), wheelTime, wheelTime, unit);
+                state = START;
+            }
         }
     }
 
@@ -48,15 +57,19 @@ public class TimeWheel {
         long time = this.unit.convert(timeOut, unit);
         int length = wheel.length;
         int p = (int) (time / wheelTime);
-        int index = (int) (p - 1) & (length - 1);
         int pos = p / length;
-        Map<Integer, Set<Runnable>> maps = wheel[index];
-        Set<Runnable> tasks = maps.get(pos);
-        if (Objects.isNull(tasks)) {
-            tasks = new HashSet<>();
+        try {
+            lock.lock();
+            Map<Integer, Set<Runnable>> maps = wheel[p & (length - 1)];
+            Set<Runnable> tasks = maps.get(pos);
+            if (Objects.isNull(tasks)) {
+                tasks = new HashSet<>();
+            }
+            tasks.add(task);
+            maps.put(pos, tasks);
+        } finally {
+            lock.unlock();
         }
-        tasks.add(task);
-        maps.put(pos, tasks);
         start();
     }
 
@@ -85,8 +98,10 @@ public class TimeWheel {
     }
 
     public void shutDown() {
-        state = SHUTDOWN;
-        scheduled.shutdown();
+        synchronized (object) {
+            state = SHUTDOWN;
+            scheduled.shutdown();
+        }
     }
 
 
