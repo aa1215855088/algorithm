@@ -68,8 +68,8 @@ public class NewTimeWheel {
         long curTime = systemClock.now();
         int p = (int) (((curTime + time) - startTime) / wheelTime);
         int pos = p / length;
+        lock.lock();
         try {
-            lock.lock();
             wheel[p & (length - 1)].add(new Task(pos, run));
         } finally {
             lock.unlock();
@@ -113,8 +113,8 @@ public class NewTimeWheel {
                         Task task = taskIterator.next();
                         if (task.getPos() <= pos) {
                             executor.submit(task);
+                            lock.lock();
                             try {
-                                lock.lock();
                                 taskIterator.remove();
                             } finally {
                                 lock.unlock();
